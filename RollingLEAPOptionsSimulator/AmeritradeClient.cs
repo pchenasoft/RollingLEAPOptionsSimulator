@@ -347,6 +347,49 @@ namespace RollingLEAPOptionsSimulator
             return quotes;
         }
 
+        public async Task<List<object>> GetOptionChain(string symbol)
+        {
+            if (symbol == null)
+            {
+                throw new ArgumentNullException("symbols");
+            }
+
+            var quotes = new List<object>();
+             
+            this.EnsureIsAuthenticated();
+
+            var url = "/apps/200/OptionChain?source=" + Uri.EscapeDataString(this.key) +
+                "&symbol=" + symbol + "&quotes=true";
+            var text = await this.http.GetStringAsync(url);
+            var xml = XDocument.Parse(text);
+
+            if (xml.Root.Element("result").Value != "OK")
+            {
+                throw new Exception();
+            }
+
+            foreach (var optionDate in xml.Root.Element("option-chain-results").Elements("option-date"))
+            {
+
+                DateTime date = DateTime.ParseExact(optionDate.Element("date").Value, "yyyyMMdd", null);
+               
+
+                foreach (var optionStrike in optionDate.Elements("option-strike"))
+                {
+                    using (var reader = optionStrike.CreateReader())
+                    {
+                        OptionStrike strike = (OptionStrike)new XmlSerializer(typeof(OptionStrike)).Deserialize(reader);
+                        strike.ExpirationDate = date;
+                        quotes.Add(strike);
+                    }
+
+                }
+                  
+            }           
+
+            return quotes;
+        }
+
         public Task<Dictionary<string, Quote[]>> GetHistoricalPrices(string symbol, DateTime? startDate = null, DateTime? endDate = null)
         {
             if (symbol == null)
@@ -633,14 +676,23 @@ namespace RollingLEAPOptionsSimulator
             this.UserAuthorizations = new Dictionary<string, bool>();
         }
 
+        private Object loginScreenLock = new Object();
+
         protected void EnsureIsAuthenticated()
         {
+           
             if (!this.IsAuthenticated)
             {
-                Thread thread = new Thread(LogIn);
-                thread.SetApartmentState(ApartmentState.STA); //Set the thread to STA
-                thread.Start();
-                thread.Join(); //Wait for the thread to end                
+                lock (loginScreenLock)
+                {
+                    if (!this.IsAuthenticated)
+                    {
+                        Thread thread = new Thread(LogIn);
+                        thread.SetApartmentState(ApartmentState.STA); //Set the thread to STA
+                        thread.Start();
+                        thread.Join(); //Wait for the thread to end   
+                    }                              
+                }                    
             }
 
             if (!this.IsAuthenticated)

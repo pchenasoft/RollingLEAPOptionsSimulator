@@ -8,7 +8,7 @@ namespace RollingLEAPOptionsSimulator.Models
 {
     using System.Xml.Serialization;
 
-    [XmlRoot("quote", Namespace = "")]
+    [XmlRoot("option-date", Namespace = "")]
     public class OptionQuote 
     {
         [XmlElement("symbol")]

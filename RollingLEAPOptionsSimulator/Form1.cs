@@ -285,22 +285,25 @@ namespace RollingLEAPOptionsSimulator
                     info("Locked Excel.");
                     try
                     {
-                        string symbol = (options[0] as OptionQuote).UnderlyingSymbol;
+                        string symbol = (options[0] as OptionStrike).Call.UnderlyingSymbol;
                         Excel._Worksheet symbolSheet = (Excel._Worksheet)GetWorkBook().Sheets[symbol];
                         Excel.Range xlRange = symbolSheet.UsedRange;
                         xlRange.ClearContents();
                         object[,] data = new object[options.Count, 13];
                         int row = 0;
-                        foreach (OptionQuote option in options)
+                        foreach (OptionStrike optionStrike in options)
                         {
-                            data[row, 0] = option.Symbol;
-                            data[row, 1] = option.GetType().Name;
-                            data[row, 3] = "" + option.ExpirationYear + option.ExpirationMonth + option.ExpirationDay;
-                            data[row, 5] = option.StrikePrice;
-                            data[row, 9] = option.Bid;
-                            data[row, 10] = option.Ask;
-                         //   data[row, 11] = option.ExpirationType;
-                            data[row, 12] = option.Delta;
+
+                            Call call = optionStrike.Call;
+
+                            data[row, 0] = call.Symbol;
+                            data[row, 1] = call.GetType().Name;
+                            data[row, 3] = optionStrike.ExpirationDate.ToString("yyyy-MM-dd");
+                            data[row, 5] = optionStrike.StrikePrice;
+                            data[row, 9] = call.Bid;
+                            data[row, 10] = call.Ask;
+                          //  data[row, 11] = option.ExpirationType;
+                           // data[row, 12] = call.Delta;
                             row++;
                         }
                         xlRange = GetExcel().Range[symbolSheet.Cells[1, 1], symbolSheet.Cells[data.GetLength(0), data.GetLength(1)]];
@@ -310,7 +313,7 @@ namespace RollingLEAPOptionsSimulator
                     }
                     catch (Exception ex)
                     {
-                        error("Unable to hendle option chain", ex);
+                        error("Unable to handle option chain", ex);
                     }
 
                 }
@@ -391,7 +394,7 @@ namespace RollingLEAPOptionsSimulator
 
         private void Form1_Shown(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(usrName.Text) && !string.IsNullOrEmpty(password.Text) && !string.IsNullOrEmpty(sourceIdTextBox.Text) && !string.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
             {
                 login();
             }
@@ -452,11 +455,10 @@ namespace RollingLEAPOptionsSimulator
         }
 
 
-        public void GetOptionChain()
-        {            
-            List<OptionQuote> options = new List<OptionQuote>();
-            //  oBroker.TD_getOptionChain(symbol, "1", ref options, true);
-            //  handler.HandleOptionChain(options);            
+        public async void GetOptionChain()
+        {
+            List<object> options = await oBroker.GetOptionChain(symbol);
+            handler.HandleOptionChain(options);
         }
     }
 }

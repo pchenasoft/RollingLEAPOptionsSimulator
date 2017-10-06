@@ -11,6 +11,7 @@ namespace RollingLEAPOptionsSimulator.Controls
     using System.Windows.Input;
 
     using RollingLEAPOptionsSimulator.Utility;
+    using System;
 
     /// <summary>
     /// Interaction logic for LoginScreen.xaml
@@ -36,12 +37,13 @@ namespace RollingLEAPOptionsSimulator.Controls
             {
                 this.Password.Focus();
             }
+
         }
 
         public LoginScreen(AmeritradeClient client)
             : this()
         {
-            this.client = client;
+            this.client = client;          
         }
 
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
@@ -82,6 +84,6 @@ namespace RollingLEAPOptionsSimulator.Controls
         private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             this.DragMove();
-        }
+        }       
     }
 }
