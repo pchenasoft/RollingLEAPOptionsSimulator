@@ -20,7 +20,7 @@ using RollingLEAPOptionsSimulator.Utility;
 
 namespace RollingLEAPOptionsSimulator
 {
-    public partial class Form1 : Form, Handler
+    public partial class Form1 : Form
     {
         public AmeritradeClient TDAmeritradeClient;
         private Excel.Workbook _workbook;
@@ -152,9 +152,7 @@ namespace RollingLEAPOptionsSimulator
                     }
                 }
 
-                GetStockQuote getStockQuote = new GetStockQuote(TDAmeritradeClient, this, symbols.ToArray());
-                Thread oThread = new Thread(new ThreadStart(getStockQuote.GetQuotes));
-                oThread.Start();
+                GetQuotes(symbols.ToArray());
 
             }
             info("Unlocked Excel.");
@@ -219,9 +217,7 @@ namespace RollingLEAPOptionsSimulator
                     string symbol = (string)(GetMainWorkSheet().Cells[row, 3] as Excel.Range).Value;
                     if (!string.IsNullOrEmpty(symbol))
                     {
-                        GetoptionChain getoptionChain = new GetoptionChain(symbol, TDAmeritradeClient, this);
-                        Thread oThread = new Thread(new ThreadStart(getoptionChain.GetOptionChain));
-                        oThread.Start();
+                        GetOptionChain(symbol);
                     }
                 }
             }
@@ -276,7 +272,7 @@ namespace RollingLEAPOptionsSimulator
         private object excelLock = new object();
 
 
-        void Handler.HandleOptionChain(List<object> options)
+        void HandleOptionChain(List<object> options)
         {
             if (options.Count > 0)
             {
@@ -400,65 +396,19 @@ namespace RollingLEAPOptionsSimulator
             }
 
         }
-    }
 
-
-    public class GetStockQuote
-    {
-        private string[] symbols;
-        public AmeritradeClient oBroker;
-        private Handler handler;
-
-        public GetStockQuote(AmeritradeClient oBroker,
-           Handler handler, params string[] symbols)
+        public async void GetOptionChain(string symbol)
         {
-            this.symbols = symbols;
-            this.oBroker = oBroker;
-            this.handler = handler;
+            List<object> options = await TDAmeritradeClient.GetOptionChain(symbol);
+            HandleOptionChain(options);
         }
 
-
-        public async void GetQuotes()
+        public async void GetQuotes(string[] symbols)
         {
-          
-            var quotes = await oBroker.GetQuotes(symbols);
-            handler.HandleStockQuote(quotes);
-           
-        }
-    }
 
-    public interface Handler
-    {
-        void HandleOptionChain(List<object> options);
-        void HandleStockQuote(List<object> quotes);
+            var quotes = await TDAmeritradeClient.GetQuotes(symbols);
+            HandleStockQuote(quotes);
 
-        void info(string v);
-        void error(string text, Exception ex);
-    }
-
-
-    public class GetoptionChain
-    {
-        private string symbol;
-        private string source;
-        private string password;
-        private string username;
-        public AmeritradeClient oBroker;
-        public Handler handler;
-
-        public GetoptionChain(string symbol, AmeritradeClient oBroker,
-           Handler handler)
-        {
-            this.symbol = symbol;
-            this.oBroker = oBroker;
-            this.handler = handler;
-        }
-
-
-        public async void GetOptionChain()
-        {
-            List<object> options = await oBroker.GetOptionChain(symbol);
-            handler.HandleOptionChain(options);
         }
     }
 }
