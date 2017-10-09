@@ -50,7 +50,7 @@ namespace RollingLEAPOptionsSimulator
         {
             this.Invoke((MethodInvoker)delegate
             {
-                cancelButton.PerformClick();
+                Close();
             });
         }
 
@@ -84,13 +84,15 @@ namespace RollingLEAPOptionsSimulator
             output.AppendText(text + "\r\n");
         }
 
-        private void login_Click(object sender, EventArgs e)
+
+        private void button2_Click(object sender, EventArgs e)
         {
-            login();
+            Refresh();
         }
 
-        private void login()
-        {           
+        public override void Refresh()
+        {
+
             Settings.SetProtected(FilePathKey, path);
 
             if (GetWorkBook() == null)
@@ -99,38 +101,28 @@ namespace RollingLEAPOptionsSimulator
                 return;
             }
 
-            
             GetMainWorkSheet().Select();
+           
+            try
+            {
+                RefreshStocks();
+            }
+            catch (Exception ex)
+            {
+                error("Unable to refresh stock quotes", ex);
+            }
+
+            try
+            {
+                RefreshOptions();
+
+            }
+            catch (Exception ex)
+            {
+                error("Unable to refresh options", ex);
+            }
+
             GetExcel().Visible = true;
-
-            Refresh();                      
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            Refresh();
-        }
-
-        public override void Refresh()
-        {           
-                try
-                {
-                    RefreshStocks();
-                }
-                catch (Exception ex)
-                {
-                    error("Unable to refresh stock quotes", ex);
-                }
-
-                try
-                {
-                    RefreshOptions();
-
-                }
-                catch (Exception ex)
-                {
-                    error("Unable to refresh options", ex);
-                }               
         }
 
 
@@ -257,11 +249,6 @@ namespace RollingLEAPOptionsSimulator
                 _xlApp.Quit();
                 Marshal.ReleaseComObject(_xlApp);
             }
-        }
-
-        private void cancel_Click(object sender, EventArgs e)
-        {
-            Close();
         }
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
@@ -392,7 +379,7 @@ namespace RollingLEAPOptionsSimulator
         {
             if (!string.IsNullOrEmpty(path))
             {
-                login();
+                Refresh();
             }
 
         }
