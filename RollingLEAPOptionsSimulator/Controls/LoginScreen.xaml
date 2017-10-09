@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        mc:Ignorable="d" d:DesignHeight="250" d:DesignWidth="330"
+        mc:Ignorable="d" d:DesignHeight="300" d:DesignWidth="330"
         WindowStartupLocation="CenterScreen"
         AllowsTransparency="True"
         ShowInTaskbar="False"
@@ -62,20 +62,23 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto "/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Label Content="Username:" Grid.Row="1" Grid.Column="0"/>
-                <TextBox Name="UserName" Grid.Row="1" Grid.Column="1"/>
-                <Label Content="Password:" Grid.Row="2" Grid.Column="0"/>
-                <PasswordBox Name="Password" Grid.Row="2" Grid.Column="1"/>
-                <StackPanel Grid.Row="3" Grid.Column="1">
+                <Label Content="Source ID:" Grid.Row="1" Grid.Column="0"/>
+                <TextBox Name="SourceID" Grid.Row="1  " Grid.Column="1"/>
+                <Label Content="Username:" Grid.Row="2" Grid.Column="0"/>
+                <TextBox Name="UserName" Grid.Row="2" Grid.Column="1"/>
+                <Label Content="Password:" Grid.Row="3" Grid.Column="0"/>
+                <PasswordBox Name="Password" Grid.Row="3" Grid.Column="1"/>
+                <StackPanel Grid.Row="4" Grid.Column="1">
                     <CheckBox Name="RememberUserName" VerticalAlignment="Center" Padding="6,-2,0,0" Margin="3" IsChecked="True" BorderThickness="2">Remember username</CheckBox>
                     <TextBlock Name="ErrorMessage" Margin="3,0,0,3" Foreground="Red">Invalid username or password</TextBlock>
                 </StackPanel>
-                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
+                <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
                     <Button Name="LoginButton" Content="Login" FontWeight="Bold" Click="LoginButton_Click" IsDefault="True"/>
                     <Button Name="CancelButton" Content="Cancel" Click="CancelButton_Click" IsCancel="True"/>
                 </StackPanel>

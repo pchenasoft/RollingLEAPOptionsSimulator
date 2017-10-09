@@ -23,11 +23,22 @@ namespace RollingLEAPOptionsSimulator.Models
         [XmlElement("ask")]
         public float Ask { get; set; }
 
-        [XmlElement("bid-ask-size")]
-        public string BidAskSize { get; set; }
+
+        [XmlElement("close")]
+        public float Close { get; set; }
+
+        [XmlElement("change")]
+        public float Change { get; set; }
+
 
         [XmlElement("last")]
         public float Last { get; set; }
+
+
+        /**
+
+        [XmlElement("bid-ask-size")]
+        public string BidAskSize { get; set; }
 
         [XmlElement("last-trade-size")]
         public int LastTradeSize { get; set; }
@@ -44,9 +55,6 @@ namespace RollingLEAPOptionsSimulator.Models
         [XmlElement("low")]
         public float Low { get; set; }
 
-        [XmlElement("close")]
-        public float Close { get; set; }
-
         [XmlElement("volume")]
         public long Volume { get; set; }
 
@@ -62,10 +70,9 @@ namespace RollingLEAPOptionsSimulator.Models
         [XmlElement("exchange")]
         public string Exchange { get; set; }
 
-        [XmlElement("change")]
-        public float Change { get; set; }
-
         [XmlElement("change-percent")]
         public string ChangePercent { get; set; }
+
+    **/
     }
 }

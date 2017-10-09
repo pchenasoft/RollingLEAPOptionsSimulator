@@ -29,7 +29,7 @@ namespace RollingLEAPOptionsSimulator
         private Excel._Worksheet _pnlSheet;
 
 
-        private string SourceIDKey = "SourceID";
+
         private string FilePathKey = "FilePath";
         string path;
 
@@ -342,8 +342,8 @@ namespace RollingLEAPOptionsSimulator
                     foreach(StockQuote quote in quotes)
                     {
                         object[] data = new object[3];
-                        data[0] = quote.Last;
-                        data[1] = quote.Change;
+                        data[0] = (quote.Bid + quote.Ask) / 2;
+                        data[1] = (quote.Bid + quote.Ask) / 2 - quote.Close;
                         data[2] = quote.Close;
                         int row = GetSymbolRow(quote.Symbol);
                         Excel.Range xlRange = GetExcel().Range[GetMainWorkSheet().Cells[row, 14], GetMainWorkSheet().Cells[row, 16]];
