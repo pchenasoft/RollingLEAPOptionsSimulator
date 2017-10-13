@@ -95,14 +95,13 @@ namespace RollingLEAPOptionsSimulator
 
             Settings.SetProtected(FilePathKey, path);
 
-            if (GetWorkBook() == null)
+            if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn()??true))
             {
-                error("Unable to open workbook. Please select a correct Excel template file.", null);
+                error("Not logged in", null);
                 return;
             }
-
-            GetMainWorkSheet().Select();
-           
+            TDAmeritradeClient.KeepAlive();
+                                  
             try
             {
                 RefreshStocks();
@@ -110,6 +109,7 @@ namespace RollingLEAPOptionsSimulator
             catch (Exception ex)
             {
                 error("Unable to refresh stock quotes", ex);
+                return;
             }
 
             try
@@ -120,6 +120,7 @@ namespace RollingLEAPOptionsSimulator
             catch (Exception ex)
             {
                 error("Unable to refresh options", ex);
+                return;
             }
 
             GetExcel().Visible = true;
@@ -144,8 +145,7 @@ namespace RollingLEAPOptionsSimulator
                     }
                 }
 
-                GetQuotes(symbols.ToArray());
-
+                 GetQuotes(symbols.ToArray());
             }
             info("Unlocked Excel.");
 
@@ -171,6 +171,10 @@ namespace RollingLEAPOptionsSimulator
                 {
                     _workbook = GetExcel().Workbooks.Open(path);
                     _workbook.BeforeClose += ThisWorkbook_BeforeClose;
+                }
+                else
+                {
+                    throw new Exception("Excel file path is missing.");
                 }
             }
             return _workbook;
@@ -220,6 +224,8 @@ namespace RollingLEAPOptionsSimulator
 
         private void Cleanup()
         {
+            TDAmeritradeClient.LogOut();
+
             //cleanup
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -386,15 +392,30 @@ namespace RollingLEAPOptionsSimulator
 
         public async void GetOptionChain(string symbol)
         {
-            List<object> options = await TDAmeritradeClient.GetOptionChain(symbol);
-            HandleOptionChain(options);
+            try
+            {
+                List<object> options = await TDAmeritradeClient.GetOptionChain(symbol);
+                HandleOptionChain(options);
+            }
+            catch (Exception ex)
+            {
+                error("Unable to refresh option quotes", ex);
+            }
         }
 
         public async void GetQuotes(string[] symbols)
         {
+            try
+            {
+                var quotes = await TDAmeritradeClient.GetQuotes(symbols);
+                HandleStockQuote(quotes);
+            }
+            catch (Exception ex)
+            {
+                error("Unable to refresh stock quotes", ex);
+            }
 
-            var quotes = await TDAmeritradeClient.GetQuotes(symbols);
-            HandleStockQuote(quotes);
+
 
         }
     }

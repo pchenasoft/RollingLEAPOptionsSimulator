@@ -68,10 +68,10 @@ namespace RollingLEAPOptionsSimulator
 
         public bool IsAuthenticated { get; private set; }
 
-        public void LogIn()
+        public bool? LogIn()
         {
             var login = new LoginScreen(this);
-            login.ShowDialog();
+            return login.ShowDialog();
         }
 
         public async Task<bool> LogIn(string userName, string password, string sourceID)
@@ -129,7 +129,10 @@ namespace RollingLEAPOptionsSimulator
 
         public async Task KeepAlive()
         {
-            this.EnsureIsAuthenticated();
+            if (!IsAuthenticated)
+            {
+                return;
+            }
 
             var text = await this.http.GetStringAsync("/apps/KeepAlive?source=" + Uri.EscapeDataString(this.key));
 
@@ -153,7 +156,10 @@ namespace RollingLEAPOptionsSimulator
                 return quotes;
             }
 
-            this.EnsureIsAuthenticated();
+            if (!IsAuthenticated)
+            {
+                return quotes;
+            }
 
             var url = "/apps/100/Quote?source=" + Uri.EscapeDataString(this.key) +
                 "&symbol=" + string.Join(",", symbols.Select(x => Uri.EscapeDataString(x.Trim())));
@@ -207,8 +213,12 @@ namespace RollingLEAPOptionsSimulator
             }
 
             var quotes = new List<object>();
-             
-            this.EnsureIsAuthenticated();
+
+
+            if (!IsAuthenticated)
+            {
+                return quotes;
+            }
 
             var url = "/apps/200/OptionChain?source=" + Uri.EscapeDataString(this.key) +
                 "&symbol=" + symbol + "&quotes=true";
@@ -242,257 +252,6 @@ namespace RollingLEAPOptionsSimulator
             return quotes;
         }
 
-        public Task<Dictionary<string, Quote[]>> GetHistoricalPrices(string symbol, DateTime? startDate = null, DateTime? endDate = null)
-        {
-            if (symbol == null)
-            {
-                throw new ArgumentNullException("symbol");
-            }
-
-            if (string.IsNullOrWhiteSpace(symbol))
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "symbol"), "symbol");
-            }
-
-            return this.GetHistoricalPrices(new[] { symbol }, startDate: startDate, endDate: endDate);
-        }
-
-        public async Task<Dictionary<string, Quote[]>> GetHistoricalPrices(string[] symbols, DateTime? startDate = null, DateTime? endDate = null)
-        {
-            if (symbols == null)
-            {
-                throw new ArgumentNullException("symbols");
-            }
-
-            if (symbols.Length == 0)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "symbols"), "symbols");
-            }
-
-            this.EnsureIsAuthenticated();
-
-            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
-
-            var fromDate = startDate.HasValue ? startDate.Value : now;
-            var toDate = endDate.HasValue ? endDate.Value : now;
-
-            var url = "/apps/100/PriceHistory?source=" + Uri.EscapeDataString(this.key) + "&requestidentifiertype=SYMBOL" +
-                "&requestvalue=" + Uri.EscapeDataString(string.Join(",", symbols)) +
-                "&intervaltype=DAILY&intervalduration=1&startdate=" + fromDate.ToString("yyyyMMdd") + "&enddate=" + toDate.ToString("yyyyMMdd");
-
-            var result = new Dictionary<string, Quote[]>();
-
-            using (var stream = await this.http.GetStreamAsync(url))
-            using (var reader = new BinaryReader(stream))
-            {
-                var numSymbols = reader.ReadInt32BE();
-
-                for (var i = 0; i < numSymbols; i++)
-                {
-                    var symbol = Encoding.ASCII.GetString(reader.ReadBytes(reader.ReadInt16BE()));
-
-                    if (reader.ReadByte() == 1 /* has error */)
-                    {
-                        var error = Encoding.ASCII.GetString(reader.ReadBytes(reader.ReadInt16BE()));
-                        
-                        // TODO: Handle error
-                        continue;
-                    }
-
-                    var numQuotes = reader.ReadInt32BE();
-                    var quotes = new Quote[numQuotes];
-
-                    for (var j = numQuotes - 1; j > -1; j--)
-                    {
-                        quotes[j] = new Quote
-                        {
-                            Close = reader.ToSingleBE(),
-                            High = reader.ToSingleBE(),
-                            Low = reader.ToSingleBE(),
-                            Open = reader.ToSingleBE(),
-                            Volume = reader.ToSingleBE(),
-                            Date = new DateTime(1970, 1, 1).AddSeconds(reader.ReadInt64BE() / 1000)
-                        };
-                    }
-
-                    result.Add(symbol, quotes);
-
-                    if (i < numSymbols - 1)
-                    {
-                        var termBytes = reader.ReadBytes(2);
-
-                        if (!termBytes.SequenceEqual(new byte[] { 255, 255 }))
-                        {
-                            throw new ApplicationException(Errors.UnexpectedEnfOfPriceData);
-                        }
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        public async Task<Dictionary<string, string>> FindSymbols(string search)
-        {
-            if (string.IsNullOrWhiteSpace(search))
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "search"), "search");
-            }
-
-            this.EnsureIsAuthenticated();
-
-            var text = await this.http.GetStringAsync(
-                "/apps/100/SymbolLookup?source=" + Uri.EscapeDataString(this.key) +
-                "&matchstring=" + Uri.EscapeDataString(search));
-
-            var xml = XDocument.Parse(text);
-            var result = new Dictionary<string, string>();
-
-            if (xml.Root.Element("result").Value == "OK")
-            {
-                foreach (var symbol in xml.Root.Element("symbol-lookup-result").Elements("symbol-result"))
-                {
-                    result.Add(symbol.Element("symbol").Value, symbol.Element("description").Value);
-                }
-            }
-
-            return result;
-        }
-
-        public Task<bool> CancelOrder(string orderID)
-        {
-            return CancelOrder(null, orderID);
-        }
-
-
-        public async Task<bool> CancelOrder(string accountID, string orderID)
-        {
-            if (orderID == null)
-            {
-                throw new ArgumentNullException("orderID");
-            }
-
-            if (orderID.Trim() == string.Empty)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "orderID"), "orderID");
-            }
-
-            if (accountID != null && accountID.Trim() == string.Empty)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "accountID"), "accountID");
-            }
-
-            this.EnsureIsAuthenticated();
-
-            var url = "/apps/100/OrderCancel?source=" + Uri.EscapeDataString(this.key) +
-                      (string.IsNullOrWhiteSpace(accountID) ? string.Empty : "&accountid=" + accountID) +
-                      "&orderid=" + Uri.EscapeDataString(orderID);
-
-            var xml = await this.http.GetXmlAsync(url);
-
-            return xml.Root.Element("result").Value != "OK" && xml.Root.Element("order").Element("error").Value == string.Empty;
-        }
-
-        public async Task<List<Watchlist>> GetWatchlists()
-        {
-            this.EnsureIsAuthenticated();
-
-            var xml = await this.http.GetXmlAsync("/apps/100/GetWatchlists?source=" + Uri.EscapeDataString(this.key));
-
-            if (xml.Root.Element("result").Value != "OK")
-            {
-                throw new ApplicationException();
-            }
-
-            var list = new List<Watchlist>();
-
-            foreach (var node in xml.Root.Element("watchlist-result").Elements("watchlist"))
-            {
-                using (var reader = node.CreateReader())
-                {
-                    list.Add((Watchlist)new XmlSerializer(typeof(Watchlist)).Deserialize(reader));
-                }
-            }
-
-            return list;
-        }
-
-        public Task<Watchlist> CreateWatchlist(string name, params string[] items)
-        {
-            if (items == null)
-            {
-                throw new ArgumentNullException("items");
-            }
-
-            return this.CreateWatchlist(name, items.Select(x => new WatchlistItem { Symbol = x }).ToArray());
-        }
-
-        public async Task<Watchlist> CreateWatchlist(string name, params WatchlistItem[] items)
-        {
-            if (name == null)
-            {
-                throw new ArgumentNullException("name");
-            }
-
-            if (name.Trim() == string.Empty)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "name"), "name");
-            }
-
-            if (items == null)
-            {
-                throw new ArgumentNullException("items");
-            }
-
-            if (items.Length == 0)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "items"), "items");
-            }
-
-            this.EnsureIsAuthenticated();
-
-            var xml = await this.http.GetXmlAsync("/apps/100/CreateWatchlist?source=" + Uri.EscapeDataString(this.key) +
-                      "&watchlistname=" + Uri.EscapeDataString(name) +
-                      "&symbollist=" + string.Join(",", items.Select(x => Uri.EscapeDataString(x.Symbol))));
-
-            if (xml.Root.Element("result").Value != "OK")
-            {
-                throw new ApplicationException();
-            }
-
-            using (var reader = xml.Root.Element("created-watchlist").CreateReader())
-            {
-                return (Watchlist)new XmlSerializer(typeof(Watchlist)).Deserialize(reader);
-            }
-        }
-
-        public async Task<bool> DeleteWatchlists(string watchlistID, string accountID = null)
-        {
-            if (watchlistID == null)
-            {
-                throw new ArgumentNullException("watchlistID");
-            }
-
-            if (watchlistID.Trim() == string.Empty)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "watchlistID"), "watchlistID");
-            }
-
-            if (accountID != null && accountID.Trim() == string.Empty)
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeEmpty, "accountID"), "accountID");
-            }
-
-            this.EnsureIsAuthenticated();
-
-            var url = "/apps/100/DeleteWatchlist?source=" +
-                      Uri.EscapeDataString(this.key) + "&listid=" + Uri.EscapeDataString(watchlistID) +
-                      (string.IsNullOrWhiteSpace(accountID) ? string.Empty : "&accountid=" + accountID);
-            
-            var xml = await this.http.GetXmlAsync(url);
-
-            return xml.Root.Element("result").Value != "OK";
-        }
 
         public void Dispose()
         {
@@ -514,31 +273,6 @@ namespace RollingLEAPOptionsSimulator
         protected void Reset()
         {
             this.IsAuthenticated = false;
-        }
-
-        private Object loginScreenLock = new Object();
-
-        protected void EnsureIsAuthenticated()
-        {
-           
-            if (!this.IsAuthenticated)
-            {
-                lock (loginScreenLock)
-                {
-                    if (!this.IsAuthenticated)
-                    {
-                        Thread thread = new Thread(LogIn);
-                        thread.SetApartmentState(ApartmentState.STA); //Set the thread to STA
-                        thread.Start();
-                        thread.Join(); //Wait for the thread to end   
-                    }                              
-                }                    
-            }
-
-            if (!this.IsAuthenticated)
-            {
-                throw new AccessViolationException();
-            }
         }
     }
 }
