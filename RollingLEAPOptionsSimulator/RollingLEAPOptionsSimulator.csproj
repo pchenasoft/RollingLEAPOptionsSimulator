@@ -62,6 +62,9 @@
   <PropertyGroup>
     <SignManifests>true</SignManifests>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>social_profile_pIL_icon.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Interop.MSXML2, Version=3.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -186,6 +189,7 @@
     <Content Include="References\Microsoft.Office.Interop.Excel.xml" />
     <Content Include="References\NZipLib.dll" />
     <Content Include="References\ZedGraph.dll" />
+    <Content Include="social_profile_pIL_icon.ico" />
     <Resource Include="Resources\Logo.png" />
   </ItemGroup>
   <ItemGroup>
