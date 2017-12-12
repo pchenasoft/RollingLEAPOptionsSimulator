@@ -127,16 +127,17 @@ namespace RollingLEAPOptionsSimulator
             }
         }
 
-        public async Task KeepAlive()
+        public void KeepAlive()
         {
             if (!IsAuthenticated)
             {
                 return;
             }
 
-            var text = await this.http.GetStringAsync("/apps/KeepAlive?source=" + Uri.EscapeDataString(this.key));
+            var task =  this.http.GetStringAsync("/apps/KeepAlive?source=" + Uri.EscapeDataString(this.key));
+            task.Wait();
 
-            if (text != "LoggedOn")
+            if (task.IsCompleted &&  task.Result != "LoggedOn")
             {
                 this.Reset();
             }

@@ -95,12 +95,14 @@ namespace RollingLEAPOptionsSimulator
 
             Settings.SetProtected(FilePathKey, path);
 
+            TDAmeritradeClient.KeepAlive();
+                         
             if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn()??true))
             {
                 error("Not logged in", null);
                 return;
             }
-            TDAmeritradeClient.KeepAlive();
+           
                                   
             try
             {
@@ -123,7 +125,7 @@ namespace RollingLEAPOptionsSimulator
                 return;
             }
 
-            GetExcel().Visible = true;
+            GetExcel().Visible = true;            
         }
 
 
