@@ -287,6 +287,11 @@ namespace RollingLEAPOptionsSimulator
 
                             Call call = optionStrike.Call;
 
+                            if(call == null)
+                            {
+                                continue;
+                            }
+
                             data[row, 0] = call.Symbol;
                             data[row, 1] = call.GetType().Name;
                             data[row, 3] = optionStrike.ExpirationDate.ToString("yyyy-MM-dd");
