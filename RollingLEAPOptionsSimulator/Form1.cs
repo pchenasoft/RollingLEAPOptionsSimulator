@@ -40,7 +40,7 @@ namespace RollingLEAPOptionsSimulator
         {
             TDAmeritradeClient = new AmeritradeClient();
             InitializeComponent();
-            info("Starting application...");          
+            info("Starting application...");
             path = Settings.GetProtected(FilePathKey);
             fileLabel.Text = path;
 
@@ -96,17 +96,19 @@ namespace RollingLEAPOptionsSimulator
             Settings.SetProtected(FilePathKey, path);
 
             TDAmeritradeClient.KeepAlive();
-                         
-            if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn()??true))
+
+            if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn() ?? true))
             {
                 error("Not logged in", null);
                 return;
             }
-           
-                                  
+
+            Task<List<object>> stocksTasks = null;
+            List<Task<List<object>>> optionsTask = null;
+
             try
             {
-                RefreshStocks();
+                stocksTasks = RefreshStocks();
             }
             catch (Exception ex)
             {
@@ -116,7 +118,7 @@ namespace RollingLEAPOptionsSimulator
 
             try
             {
-                RefreshOptions();
+                optionsTask = RefreshOptions();
 
             }
             catch (Exception ex)
@@ -125,19 +127,42 @@ namespace RollingLEAPOptionsSimulator
                 return;
             }
 
-            GetExcel().Visible = true;            
+            GetExcel().Visible = true;
+
+
+            try
+            {
+                HandleStockQuote(stocksTasks);
+            }
+            catch (Exception ex)
+            {
+                error("Unable to refresh stock quotes", ex);                
+            }
+
+
+            foreach (Task<List<object>> task in optionsTask)
+            {
+                try
+                {
+                    HandleOptionChain(task);
+                }
+                catch (Exception ex)
+                {
+                    error("Unable to refresh opton quote", ex);
+                }
+            }
         }
 
 
-        private void RefreshStocks()
+        private Task<List<object>> RefreshStocks()
         {
+            List<String> symbols = new List<string>();
+
             lock (excelLock)
             {
-                info("Locked Excel.");
-                info("Refreshing stock quotes...");
+                info("");
+                info("Locked Excel. Getting stock quotes symbols.");
                 GetMainWorkSheet().Range["N2:P8"].Font.Color = ColorTranslator.ToOle(Color.Red);
-                List<String> symbols = new List<string>() ;
-
                 for (int row = 2; row < 9; row++)
                 {
                     string symbol = (string)(GetMainWorkSheet().Cells[row, 3] as Excel.Range).Value;
@@ -146,11 +171,9 @@ namespace RollingLEAPOptionsSimulator
                         symbols.Add(symbol);
                     }
                 }
-
-                 GetQuotes(symbols.ToArray());
             }
-            info("Unlocked Excel.");
-
+            info("Unlocked Excel. Sending stock quotes request");
+            return TDAmeritradeClient.GetQuotes(symbols.ToArray());                     
         }
 
 
@@ -201,13 +224,14 @@ namespace RollingLEAPOptionsSimulator
         }
 
 
-        private void RefreshOptions()
+        private List<Task<List<object>>> RefreshOptions()
         {
+            List<string> symbols = new List<string>();
+            List<Task<List<object>>> tasks = new List<Task<List<object>>>();
 
             lock (excelLock)
-            {
-                info("Locked Excel.");
-                info("Refreshing option quotes...");
+            {                 
+                info("Locked Excel. Getting option symbols.");
                 GetMainWorkSheet().Range["C2:C8"].Font.Color = ColorTranslator.ToOle(Color.Red);
 
                 for (int row = 2; row < 9; row++)
@@ -215,14 +239,23 @@ namespace RollingLEAPOptionsSimulator
                     string symbol = (string)(GetMainWorkSheet().Cells[row, 3] as Excel.Range).Value;
                     if (!string.IsNullOrEmpty(symbol))
                     {
-                        GetOptionChain(symbol);
+                        symbols.Add(symbol);
                     }
                 }
             }
-            info("Unlocked Excel.");
+            info("Unlocked Excel. Sending option qoute requests.");
+
+            foreach (string symbol in symbols)
+            {
+                tasks.Add(TDAmeritradeClient.GetOptionChain(symbol));
+            }
+            info("Done sending option quote requests.");
+
+            return tasks;
+
         }
 
- 
+
 
         private void Cleanup()
         {
@@ -266,28 +299,47 @@ namespace RollingLEAPOptionsSimulator
 
         private object excelLock = new object();
 
-
-        void HandleOptionChain(List<object> options)
+        async void HandleOptionChain(Task<List<object>> task)
         {
+            List<object> options = await task;
+
             if (options.Count > 0)
             {
                 lock (excelLock)
                 {
-                    info("Locked Excel.");
+                    string symbol = (options[0] as OptionStrike)?.Call?.UnderlyingSymbol;
+                    info("Locked Excel. Handling options quote symbol " + symbol);
                     try
                     {
-                        string symbol = (options[0] as OptionStrike).Call.UnderlyingSymbol;
+
                         Excel._Worksheet symbolSheet = (Excel._Worksheet)GetWorkBook().Sheets[symbol];
                         Excel.Range xlRange = symbolSheet.UsedRange;
                         xlRange.ClearContents();
-                        object[,] data = new object[options.Count, 13];
+                        object[,] data = new object[options.Count + 1, 18];
+
                         int row = 0;
+
+                        data[row, 0] = "Symbol";
+                        data[row, 1] = "Type";
+                        data[row, 3] = "ExpirationDate";
+                        data[row, 5] = "StrikePrice";
+                        data[row, 9] = "Bid";
+                        data[row, 10] = "Ask";                     
+                        data[row, 12] = "Delta";
+                        data[row, 13] = "Gamma";
+                        data[row, 14] = "Theta";
+                        data[row, 15] = "Vega";
+                        data[row, 16] = "Rho";
+                        data[row, 17] = "ImpliedVolatitily";
+
+                        row++;
+
                         foreach (OptionStrike optionStrike in options)
                         {
 
                             Call call = optionStrike.Call;
 
-                            if(call == null)
+                            if (call == null)
                             {
                                 continue;
                             }
@@ -298,8 +350,13 @@ namespace RollingLEAPOptionsSimulator
                             data[row, 5] = optionStrike.StrikePrice;
                             data[row, 9] = call.Bid;
                             data[row, 10] = call.Ask;
-                          //  data[row, 11] = option.ExpirationType;
-                           // data[row, 12] = call.Delta;
+                            //  data[row, 11] = option.ExpirationType;
+                            data[row, 12] = call.Delta;
+                            data[row, 13] = call.Gamma;
+                            data[row, 14] = call.Theta;
+                            data[row, 15] = call.Vega;
+                            data[row, 16] = call.Rho;
+                            data[row, 17] = call.ImpliedVolatitily;                           
                             row++;
                         }
                         xlRange = GetExcel().Range[symbolSheet.Cells[1, 1], symbolSheet.Cells[data.GetLength(0), data.GetLength(1)]];
@@ -313,7 +370,7 @@ namespace RollingLEAPOptionsSimulator
                     }
 
                 }
-                info("Unlocked Excel.");
+                info("Unlocked Excel. Done handling options quote");
 
             }
         }
@@ -332,14 +389,17 @@ namespace RollingLEAPOptionsSimulator
             return 0;
         }
 
-        public void HandleStockQuote(List<object> quotes)
+        public async void HandleStockQuote(Task<List<object>> task)
         {
+            List<object> quotes = await task;
+
             lock (excelLock)
             {
-                info("Locked Excel.");
-                try
+                info("Locked Excel. Handling stock quotes.");
+
+                foreach (StockQuote quote in quotes)
                 {
-                    foreach(StockQuote quote in quotes)
+                    try
                     {
                         object[] data = new object[3];
                         data[0] = (quote.Bid + quote.Ask) / 2;
@@ -352,16 +412,15 @@ namespace RollingLEAPOptionsSimulator
                         (GetMainWorkSheet().Cells[row, 15] as Excel.Range).Font.Color = ColorTranslator.ToOle(Color.Black);
                         (GetMainWorkSheet().Cells[row, 16] as Excel.Range).Font.Color = ColorTranslator.ToOle(Color.Black);
 
-                    }
-                   
-                }
-                catch (Exception ex)
-                {
-                    error("Unable to hendle stock quote", ex);
-                }
 
+                    }
+                    catch (Exception ex)
+                    {
+                        error("Unable to handle stock quote for symbol " + quote.Symbol, ex);
+                    }
+                }
             }
-            info("Unlocked Excel.");
+            info("Unlocked Excel. Done handling stock quotes");
         }
 
 
@@ -394,35 +453,6 @@ namespace RollingLEAPOptionsSimulator
             {
                 Refresh();
             }
-
-        }
-
-        public async void GetOptionChain(string symbol)
-        {
-            try
-            {
-                List<object> options = await TDAmeritradeClient.GetOptionChain(symbol);
-                HandleOptionChain(options);
-            }
-            catch (Exception ex)
-            {
-                error("Unable to refresh option quotes", ex);
-            }
-        }
-
-        public async void GetQuotes(string[] symbols)
-        {
-            try
-            {
-                var quotes = await TDAmeritradeClient.GetQuotes(symbols);
-                HandleStockQuote(quotes);
-            }
-            catch (Exception ex)
-            {
-                error("Unable to refresh stock quotes", ex);
-            }
-
-
 
         }
     }

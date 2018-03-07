@@ -21,30 +21,54 @@ namespace RollingLEAPOptionsSimulator.Models
         public string UnderlyingSymbol { get; set; }
 
         [XmlIgnore]
-        public float? Bid
-        {
-            get
-            {
-                float floatVal;
-                return float.TryParse(BidStr, out floatVal) ? floatVal : default(float);
-            }
-        }
+        public float? Bid  => getFloat(BidStr);
+       
+        [XmlIgnore]
+        public float? Ask => getFloat(AskStr);
+       
+        [XmlIgnore]
+        public float? Delta => getFloat(DeltaStr);
 
         [XmlIgnore]
-        public float? Ask
-        {
-            get
-            {
-                float floatVal;
-                return float.TryParse(AskStr, out floatVal) ? floatVal : default(float);
-            }
-        }
+        public float? Gamma => getFloat(GammaStr);
+
+        [XmlIgnore]
+        public float? Theta => getFloat(ThetaStr);
+
+        [XmlIgnore]
+        public float? Vega => getFloat(VegaStr);
+
+        [XmlIgnore]
+        public float? Rho => getFloat(RhoStr);
+
+        [XmlIgnore]
+        public float? ImpliedVolatitily => getFloat(ImpliedVolatitilyStr);
+
 
         [XmlElement("bid")]
         public string BidStr { get; set; }
 
         [XmlElement("ask")]
         public string AskStr { get; set; }
+
+
+        [XmlElement("delta")]
+        public string DeltaStr { get; set; }
+
+        [XmlElement("gamma")]
+        public string GammaStr { get; set; }
+
+        [XmlElement("theta")]
+        public string ThetaStr { get; set; }
+
+        [XmlElement("vega")]
+        public string VegaStr { get; set; }
+
+        [XmlElement("rho")]
+        public string RhoStr { get; set; }
+
+        [XmlElement("implied-volatility")]
+        public string ImpliedVolatitilyStr { get; set; }
 
         /**
 
@@ -63,8 +87,6 @@ namespace RollingLEAPOptionsSimulator.Models
         [XmlElement("real-time")]
         public bool IsRealTime { get; set; }
 
-        [XmlElement("delta")]
-        public float Delta { get; set; }
 
         [XmlElement("gamma")]
         public float Gamma { get; set; }
@@ -88,5 +110,10 @@ namespace RollingLEAPOptionsSimulator.Models
         public float Multiplier { get; set; }
 
     **/
+        private float? getFloat(string floatVal)
+        {
+            float result;
+            return float.TryParse(floatVal, out result) ? result : default(float);
+        }
     }
 }
