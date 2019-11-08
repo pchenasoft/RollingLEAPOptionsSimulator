@@ -18,26 +18,20 @@ namespace RollingLEAPOptionsSimulator.Controls
     /// </summary>
     public partial class LoginScreen : Window
     {
-        private const string UserNameKey = "UserName";
-        private const string PasswordKey = "Pwd";
-        private string SourceIDKey = "SourceID";
-        private const string RememberUserNameKey = "RememberUserName";
-
         private readonly AmeritradeClient client;
 
         public LoginScreen()
         {
             this.InitializeComponent();
 
-            this.SourceID.Text = Settings.GetProtected(SourceIDKey);
-            this.UserName.Text = Settings.GetProtected(UserNameKey);
-            this.Password.Password = Settings.GetProtected(PasswordKey);
-            this.RememberUserName.IsChecked = Settings.Get(RememberUserNameKey, defaultValue: true);
+            this.AppKey.Text = Settings.GetProtected(Settings.AppKeyKey);
+            this.RefreshToken.Text = Settings.GetProtected(Settings.RefreshTokenKey);        
+            this.RememberUserName.IsChecked = Settings.Get(Settings.RememberKey, defaultValue: true);
             this.ErrorMessage.Visibility = Visibility.Collapsed;
 
-            if (!string.IsNullOrWhiteSpace(this.UserName.Text))
+            if (!string.IsNullOrWhiteSpace(this.AppKey.Text))
             {
-                this.Password.Focus();
+                this.RefreshToken.Focus();
             }
 
         }
@@ -50,29 +44,26 @@ namespace RollingLEAPOptionsSimulator.Controls
 
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(this.UserName.Text) || string.IsNullOrWhiteSpace(this.Password.Password) || string.IsNullOrWhiteSpace(this.SourceID.Text))
+            if (string.IsNullOrWhiteSpace(this.AppKey.Text) || string.IsNullOrWhiteSpace(this.RefreshToken.Text))
             {
                 this.ErrorMessage.Visibility = Visibility.Visible;
                 return;
             }
 
-            Settings.SetProtected(UserNameKey, this.RememberUserName.IsChecked.Value ? this.UserName.Text : string.Empty);
-            Settings.SetProtected(SourceIDKey, this.RememberUserName.IsChecked.Value ? this.SourceID.Text : string.Empty);
-            Settings.SetProtected(PasswordKey, this.RememberUserName.IsChecked.Value ? this.Password.Password : string.Empty);
-            Settings.Set(RememberUserNameKey, this.RememberUserName.IsChecked.Value);
+            Settings.SetProtected(Settings.AppKeyKey, this.RememberUserName.IsChecked.Value ? this.AppKey.Text : string.Empty);
+            Settings.SetProtected(Settings.RefreshTokenKey, this.RememberUserName.IsChecked.Value ? this.RefreshToken.Text : string.Empty);           
+            Settings.Set(Settings.RememberKey, this.RememberUserName.IsChecked.Value);
 
-            this.SourceID.IsEnabled = false;
-            this.UserName.IsEnabled = false;
-            this.Password.IsEnabled = false;
+            this.RefreshToken.IsEnabled = false;
+            this.AppKey.IsEnabled = false;
             this.LoginButton.IsEnabled = false;
 
-            var result = await this.client.LogIn(this.UserName.Text, this.Password.Password, this.SourceID.Text);
+            var result = await this.client.LogIn(this.AppKey.Text, this.RefreshToken.Text);
 
             if (!result)
             {
-                this.UserName.IsEnabled = true;
-                this.SourceID.IsEnabled = true;
-                this.Password.IsEnabled = true;
+                this.AppKey.IsEnabled = true;
+                this.RefreshToken.IsEnabled = true;           
                 this.LoginButton.IsEnabled = true;
                 this.ErrorMessage.Visibility = Visibility.Visible;
                 return;

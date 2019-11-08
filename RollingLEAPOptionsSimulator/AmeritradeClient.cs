@@ -4,7 +4,10 @@ namespace RollingLEAPOptionsSimulator
     using Controls;
     using Extensions;
     using Models;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
     using Resources;
+    using RollingLEAPOptionsSimulator.Utility;
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
@@ -16,6 +19,7 @@ namespace RollingLEAPOptionsSimulator
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Web.Script.Serialization;
     using System.Xml.Linq;
     using System.Xml.Serialization;
 
@@ -26,10 +30,7 @@ namespace RollingLEAPOptionsSimulator
     public class AmeritradeClient : IDisposable
     {
         private readonly HttpClient http;
-
-        private string key;
-        private readonly string name;
-        private readonly string version;
+        private AuthToken token;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AmeritradeClient"/> class.
@@ -50,15 +51,10 @@ namespace RollingLEAPOptionsSimulator
                 throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "version"));
             }
 
-            this.name = name;
-            this.version = version;
-
             this.http = new HttpClient
             {
-                BaseAddress = new Uri("https://apis.tdameritrade.com")
-            };
-
-            this.Reset();
+                BaseAddress = new Uri("https://api.tdameritrade.com")                 
+            };           
         }
 
         ~AmeritradeClient()
@@ -66,82 +62,70 @@ namespace RollingLEAPOptionsSimulator
             this.Dispose(false);
         }
 
-        public bool IsAuthenticated { get; private set; }
-
-        public bool? LogIn()
+        public async Task<bool?> LogIn()
         {
-            var login = new LoginScreen(this);
-            return login.ShowDialog();
+            var appKey =  Settings.GetProtected(Settings.AppKeyKey);
+            var token = Settings.GetProtected(Settings.RefreshTokenKey);
+           
+
+            if (!string.IsNullOrWhiteSpace(appKey) && !string.IsNullOrWhiteSpace(appKey))
+            {
+                return await LogIn(appKey, token);
+            } 
+            else
+            {
+                var login = new LoginScreen(this);
+                return login.ShowDialog();
+            }         
         }
 
-        public async Task<bool> LogIn(string userName, string password, string sourceID)
+        public async Task<bool> LogIn(string appKey, string refreshToken)
         {
-            if (string.IsNullOrWhiteSpace(userName))
+            if (string.IsNullOrWhiteSpace(refreshToken))
             {
-                throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "userName"), "userName");
+                throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "refreshToken"), "refreshToken");
             }
 
-            if (string.IsNullOrWhiteSpace(password))
+            try
             {
-                throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "password"), "password");
-            }
+                var response = await this.http.PostAsync(
+                   "/v1/oauth2/token",
+                  new FormUrlEncodedContent(new[]
+                  {
+                        new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                        new KeyValuePair<string, string>("refresh_token", refreshToken),
+                        new KeyValuePair<string, string>("client_id", appKey)
+                  }));
 
-            if (string.IsNullOrWhiteSpace(sourceID))
-            {
-                throw new ArgumentException(string.Format(Errors.CannotBeNullOrWhitespace, "sourceID"), "sourceID");
-            }
+                var text = await response.Content.ReadAsStringAsync();
+                token = JsonConvert.DeserializeObject<AuthToken>(text);
 
-            this.key = sourceID;
 
-            var response = await this.http.PostAsync(
-                "/apps/300/LogIn?source=" + Uri.EscapeDataString(this.key) + "&version=" + Uri.EscapeDataString(this.version),
-                new FormUrlEncodedContent(new[]
+                if (token != null)
                 {
-                    new KeyValuePair<string, string>("userid", userName),
-                    new KeyValuePair<string, string>("password", password),
-                    new KeyValuePair<string, string>("source", this.key),
-                    new KeyValuePair<string, string>("version", this.version)
-                }));
+                    this.http.DefaultRequestHeaders.Add("Authorization", "Bearer " + token.Token);
+                    return true;
+                }
 
-            userName = password = null;
-            var text = await response.Content.ReadAsStringAsync();
-            var xml = XDocument.Parse(text);
+            } 
+            catch (Exception ex)
+            {
 
-            if (this.IsAuthenticated = xml.Root.Element("result").Value == "OK")
-            {            
-                return true;
             }
 
-            this.Reset();
+          
+
+            
             return false;
         }
 
-        public async Task LogOut()
+        public class AuthToken
         {
-            var text = await this.http.GetStringAsync("/apps/100/LogOut?source=" + Uri.EscapeDataString(this.key));
-            var xml = XDocument.Parse(text);
-
-            if (xml.Root.Element("result").Value == "LoggedOut")
-            {
-                this.Reset();
-            }
+            [JsonProperty("access_token")]
+            public string  Token { get; set; }
         }
 
-        public void KeepAlive()
-        {
-            if (!IsAuthenticated)
-            {
-                return;
-            }
 
-            var task =  this.http.GetStringAsync("/apps/KeepAlive?source=" + Uri.EscapeDataString(this.key));
-            task.Wait();
-
-            if (task.IsCompleted &&  task.Result != "LoggedOn")
-            {
-                this.Reset();
-            }
-        }
 
         public async Task<List<object>> GetQuotes(params string[] symbols)
         {
@@ -156,51 +140,16 @@ namespace RollingLEAPOptionsSimulator
             {
                 return quotes;
             }
-
-            if (!IsAuthenticated)
-            {
-                return quotes;
-            }
-
-            var url = "/apps/100/Quote?source=" + Uri.EscapeDataString(this.key) +
+            
+            var url = "/v1/marketdata/quotes?" +             
                 "&symbol=" + string.Join(",", symbols.Select(x => Uri.EscapeDataString(x.Trim())));
             var text = await this.http.GetStringAsync(url);
-            var xml = XDocument.Parse(text);
 
-            if (xml.Root.Element("result").Value != "OK")
+            dynamic deserializedProduct = JsonConvert.DeserializeObject<object>(text);
+        
+            foreach (var ticker in symbols)
             {
-                throw new Exception();
-            }
-
-            foreach (var quoteNode in xml.Root.Element("quote-list").Elements("quote"))
-            {
-                using (var reader = quoteNode.CreateReader())
-                {
-                    if (quoteNode.Element("error").Value != string.Empty)
-                    {
-                        quotes.Add((ErrorQuote)new XmlSerializer(typeof(ErrorQuote)).Deserialize(reader));
-                        continue;
-                    }
-
-                    switch (quoteNode.Element("asset-type").Value)
-                    {
-                        case "E":
-                            quotes.Add((StockQuote)new XmlSerializer(typeof(StockQuote)).Deserialize(reader));
-                            break;
-                        case "O":
-                            quotes.Add((OptionQuote)new XmlSerializer(typeof(OptionQuote)).Deserialize(reader));
-                            break;
-                        case "I":
-                            quotes.Add((IndexQuote)new XmlSerializer(typeof(IndexQuote)).Deserialize(reader));
-                            break;
-                        case "F":
-                            quotes.Add((FundQuote)new XmlSerializer(typeof(FundQuote)).Deserialize(reader));
-                            break;
-                        default:
-                            quotes.Add((ErrorQuote)new XmlSerializer(typeof(ErrorQuote)).Deserialize(reader));
-                            break;
-                    }
-                }
+                quotes.Add(JsonConvert.DeserializeObject<StockQuote>(deserializedProduct[ticker].ToString()));              
             }
 
             return quotes;
@@ -215,42 +164,51 @@ namespace RollingLEAPOptionsSimulator
 
             var quotes = new List<object>();
 
-
-            if (!IsAuthenticated)
-            {
-                return quotes;
-            }
-
-            var url = "/apps/200/OptionChain?source=" + Uri.EscapeDataString(this.key) +
-                "&symbol=" + symbol + "&quotes=true";
+            var url = "/v1/marketdata/chains?" + 
+                "symbol=" + symbol + "&includeQuotes=true";
             var text = await this.http.GetStringAsync(url);
-            var xml = XDocument.Parse(text);
 
-            if (xml.Root.Element("result").Value != "OK")
-            {
-                throw new Exception();
-            }
+            Option deserializedProduct = JsonConvert.DeserializeObject<Option>(text);
 
-            foreach (var optionDate in xml.Root.Element("option-chain-results").Elements("option-date"))
+            
+            foreach (var optionDate in deserializedProduct.callExpDateMap)
             {
 
-                DateTime date = DateTime.ParseExact(optionDate.Element("date").Value, "yyyyMMdd", null);
+                DateTime date = DateTime.ParseExact(optionDate.Key.Substring(0,10), "yyyy-MM-dd", null);
                
-
-                foreach (var optionStrike in optionDate.Elements("option-strike"))
+                foreach (var optionStrike in optionDate.Value)
                 {
-                    using (var reader = optionStrike.CreateReader())
-                    {
-                        OptionStrike strike = (OptionStrike)new XmlSerializer(typeof(OptionStrike)).Deserialize(reader);
-                        strike.ExpirationDate = date;
-                        quotes.Add(strike);
-                    }
+                    foreach (var putCall in optionStrike.Value)
+                    {              
+                        try
+                        {
+                            OptionStrike strike = JsonConvert.DeserializeObject<OptionStrike>(putCall.ToString());
+                            strike.ExpirationDate = date;
+                            strike.Underlyer = symbol;
+                            quotes.Add(strike);
 
+                        } catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            Console.WriteLine(ex.InnerException?.Message);
+                        }
+                        
+                       
+
+                    }
+                                  
                 }
                   
             }           
-
+            
             return quotes;
+
+    
+        }
+
+        public class Option
+        {
+            public Dictionary<string, JObject> callExpDateMap { get; set; }
         }
 
 
@@ -269,11 +227,6 @@ namespace RollingLEAPOptionsSimulator
                     this.http.Dispose();
                 }              
             }
-        }
-
-        protected void Reset()
-        {
-            this.IsAuthenticated = false;
         }
     }
 }

@@ -6,32 +6,31 @@
 
 namespace RollingLEAPOptionsSimulator.Models
 {
+    using Newtonsoft.Json;
     using System.Xml.Serialization;
 
     [XmlRoot("quote", Namespace = "")]
     public class StockQuote 
     {
-        [XmlElement("symbol")]
+        [JsonProperty("symbol")]
         public string Symbol { get; set; }
 
-        [XmlElement("description")]
+        [JsonProperty("description")]
         public string Description { get; set; }
 
-        [XmlElement("bid")]
+        [JsonProperty("bidPrice")]
         public float Bid { get; set; }
 
-        [XmlElement("ask")]
+        [JsonProperty("askPrice")]
         public float Ask { get; set; }
 
-
-        [XmlElement("close")]
+        [JsonProperty("closePrice")]
         public float Close { get; set; }
 
-        [XmlElement("change")]
+        [JsonProperty("netChange")]
         public float Change { get; set; }
 
-
-        [XmlElement("last")]
+        [JsonProperty("lastPrice")]
         public float Last { get; set; }
 
 

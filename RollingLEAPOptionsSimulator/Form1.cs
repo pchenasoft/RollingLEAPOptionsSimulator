@@ -43,7 +43,6 @@ namespace RollingLEAPOptionsSimulator
             info("Starting application...");
             path = Settings.GetProtected(FilePathKey);
             fileLabel.Text = path;
-
         }
 
         void ThisWorkbook_BeforeClose(ref bool Cancel)
@@ -90,18 +89,10 @@ namespace RollingLEAPOptionsSimulator
             Refresh();
         }
 
-        public override void Refresh()
+        public async override void Refresh()
         {
 
             Settings.SetProtected(FilePathKey, path);
-
-            TDAmeritradeClient.KeepAlive();
-
-            if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn() ?? true))
-            {
-                error("Not logged in!", null);
-                return;
-            }
 
             Task<List<object>> stocksTasks = null;
             List<Task<List<object>>> optionsTask = null;
@@ -259,7 +250,6 @@ namespace RollingLEAPOptionsSimulator
 
         private void Cleanup()
         {
-            TDAmeritradeClient.LogOut();
 
             //cleanup
             GC.Collect();
@@ -307,7 +297,7 @@ namespace RollingLEAPOptionsSimulator
             {
                 lock (excelLock)
                 {
-                    string symbol = (options[0] as OptionStrike)?.Call?.UnderlyingSymbol;
+                    string symbol = (options[0] as OptionStrike)?.Underlyer;
                     info("Locked Excel. Handling options quote symbol " + symbol);
                     try
                     {
@@ -334,20 +324,18 @@ namespace RollingLEAPOptionsSimulator
 
                         row++;
 
-                        foreach (OptionStrike optionStrike in options)
+                        foreach (OptionStrike call in options)
                         {
-
-                            Call call = optionStrike.Call;
-
-                            if (call == null)
+                          
+                            if (!call.IsCall)
                             {
                                 continue;
                             }
 
                             data[row, 0] = call.Symbol;
                             data[row, 1] = call.GetType().Name;
-                            data[row, 3] = optionStrike.ExpirationDate.ToString("yyyy-MM-dd");
-                            data[row, 5] = optionStrike.StrikePrice;
+                            data[row, 3] = call.ExpirationDate.ToString("yyyy-MM-dd");
+                            data[row, 5] = call.StrikePrice;
                             data[row, 9] = call.Bid;
                             data[row, 10] = call.Ask;
                             //  data[row, 11] = option.ExpirationType;
@@ -447,8 +435,15 @@ namespace RollingLEAPOptionsSimulator
 
         }
 
-        private void Form1_Shown(object sender, EventArgs e)
+        private async void Form1_Shown(object sender, EventArgs e)
         {
+
+            if (!(await TDAmeritradeClient.LogIn()) ?? true)
+            {
+                error("Not logged in", null);
+                return;
+            }
+
             if (!string.IsNullOrEmpty(path))
             {
                 Refresh();

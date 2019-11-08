@@ -10,7 +10,7 @@
         Background="Transparent"
         WindowStyle="None"
         SizeToContent="WidthAndHeight"
-        FocusManager.FocusedElement="{Binding ElementName=UserNameText}" FontSize="14" Title="TD Ameritrade Client Login">
+        FocusManager.FocusedElement="{Binding ElementName=RefreshToken}" FontSize="14" Title="TD Ameritrade Client Login">
     <Window.Resources>
         <Style TargetType="Label">
             <Setter Property="Margin" Value="3"/>
@@ -18,15 +18,6 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Margin" Value="3,3,20,3"/>
-            <Setter Property="Padding" Value="3"/>
-            <Setter Property="Width" Value="170"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Background" Value="#F0F0F0" />
-        </Style>
-        <Style TargetType="PasswordBox">
             <Setter Property="Margin" Value="3,3,20,3"/>
             <Setter Property="Padding" Value="3"/>
             <Setter Property="Width" Value="170"/>
@@ -68,15 +59,13 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Label Content="Source ID:" Grid.Row="1" Grid.Column="0"/>
-                <TextBox Name="SourceID" Grid.Row="1  " Grid.Column="1"/>
-                <Label Content="Username:" Grid.Row="2" Grid.Column="0"/>
-                <TextBox Name="UserName" Grid.Row="2" Grid.Column="1"/>
-                <Label Content="Password:" Grid.Row="3" Grid.Column="0"/>
-                <PasswordBox Name="Password" Grid.Row="3" Grid.Column="1"/>
+                <Label Content="App key:" Grid.Row="1" Grid.Column="0" Margin="0,0,3,3" VerticalAlignment="Bottom"/>
+                <TextBox Name="AppKey" Grid.Row="1  " Grid.Column="1"/>
+                <Label Content="Refresh Token:" Grid.Row="2" Grid.Column="0"/>
+                <TextBox Name="RefreshToken" Grid.Row="2" Grid.Column="1"/>
                 <StackPanel Grid.Row="4" Grid.Column="1">
-                    <CheckBox Name="RememberUserName" VerticalAlignment="Center" Padding="6,-2,0,0" Margin="3" IsChecked="True" BorderThickness="2">Remember username</CheckBox>
-                    <TextBlock Name="ErrorMessage" Margin="3,0,0,3" Foreground="Red">Invalid username or password</TextBlock>
+                    <CheckBox Name="RememberUserName" VerticalAlignment="Center" Padding="6,-2,0,0" Margin="3" IsChecked="True" BorderThickness="2">Remember key/token</CheckBox>
+                    <TextBlock Name="ErrorMessage" Margin="3,0,0,3" Foreground="Red">Invalid key/token</TextBlock>
                 </StackPanel>
                 <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
                     <Button Name="LoginButton" Content="Login" FontWeight="Bold" Click="LoginButton_Click" IsDefault="True"/>

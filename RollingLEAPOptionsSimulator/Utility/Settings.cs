@@ -14,6 +14,11 @@ namespace RollingLEAPOptionsSimulator.Utility
 
     internal static class Settings
     {
+        
+        public static  string AppKeyKey = "AppKey";
+        public static  string RefreshTokenKey = "RefreshToken";
+        public static  string RememberKey = "Remember";
+
         internal static bool Get(string name, bool defaultValue)
         {
             var key = Registry.CurrentUser.CreateSubKey("Software\\PchenaSoft\\TD Ameritrade Client Library for .NET");
