@@ -99,7 +99,7 @@ namespace RollingLEAPOptionsSimulator
 
             if (!TDAmeritradeClient.IsAuthenticated && (!TDAmeritradeClient.LogIn() ?? true))
             {
-                error("Not logged in", null);
+                error("Not logged in!", null);
                 return;
             }
 
