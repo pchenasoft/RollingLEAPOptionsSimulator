@@ -68,7 +68,7 @@ namespace RollingLEAPOptionsSimulator
             var token = Settings.GetProtected(Settings.RefreshTokenKey);
            
 
-            if (!string.IsNullOrWhiteSpace(appKey) && !string.IsNullOrWhiteSpace(appKey))
+            if (!string.IsNullOrWhiteSpace(appKey) && !string.IsNullOrWhiteSpace(token))
             {
                 return await LogIn(appKey, token);
             } 
@@ -143,7 +143,7 @@ namespace RollingLEAPOptionsSimulator
             
             var url = "/v1/marketdata/quotes?" +             
                 "&symbol=" + string.Join(",", symbols.Select(x => Uri.EscapeDataString(x.Trim())));
-            var text = await this.http.GetStringAsync(url);
+            string  text = await this.http.GetStringAsync(url);
 
             dynamic deserializedProduct = JsonConvert.DeserializeObject<object>(text);
         

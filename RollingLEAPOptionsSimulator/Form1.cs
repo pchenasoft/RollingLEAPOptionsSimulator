@@ -84,12 +84,34 @@ namespace RollingLEAPOptionsSimulator
         }
 
 
-        private void button2_Click(object sender, EventArgs e)
+        private async void button2_Click(object sender, EventArgs e)
         {
-            Refresh();
+            try
+            {           
+                await Refresh();
+            } 
+            catch (Exception ex)
+            {
+                error("Refresh error!", ex);
+                info("Logging in and trying one more time...");
+
+                if (!(await TDAmeritradeClient.LogIn()) ?? true)
+                {
+                    error("Not logged in", null);
+                    return;
+                }
+                try
+                {
+                    await Refresh();
+                } 
+                catch(Exception ex2)
+                {
+                    error("Error after second attempt! Aborting... ", ex2);
+                }                
+            }          
         }
 
-        public async override void Refresh()
+        public async new Task Refresh()
         {
 
             Settings.SetProtected(FilePathKey, path);
@@ -104,7 +126,7 @@ namespace RollingLEAPOptionsSimulator
             catch (Exception ex)
             {
                 error("Unable to refresh stock quotes", ex);
-                return;
+                throw ex;
             }
 
             try
@@ -115,7 +137,7 @@ namespace RollingLEAPOptionsSimulator
             catch (Exception ex)
             {
                 error("Unable to refresh options", ex);
-                return;
+                throw ex;
             }
 
             GetExcel().Visible = true;
@@ -123,11 +145,12 @@ namespace RollingLEAPOptionsSimulator
 
             try
             {
-                HandleStockQuote(stocksTasks);
+               await  HandleStockQuote(stocksTasks);
             }
             catch (Exception ex)
             {
-                error("Unable to refresh stock quotes", ex);                
+                error("Unable to handle stock quotes", ex);
+                throw ex;
             }
 
 
@@ -135,11 +158,12 @@ namespace RollingLEAPOptionsSimulator
             {
                 try
                 {
-                    HandleOptionChain(task);
+                    await HandleOptionChain(task);
                 }
                 catch (Exception ex)
                 {
-                    error("Unable to refresh opton quote", ex);
+                    error("Unable to handle opton quotes", ex);
+                    throw ex;
                 }
             }
         }
@@ -289,7 +313,7 @@ namespace RollingLEAPOptionsSimulator
 
         private object excelLock = new object();
 
-        async void HandleOptionChain(Task<List<object>> task)
+        async Task HandleOptionChain(Task<List<object>> task)
         {
             List<object> options = await task;
 
@@ -377,7 +401,7 @@ namespace RollingLEAPOptionsSimulator
             return 0;
         }
 
-        public async void HandleStockQuote(Task<List<object>> task)
+        public async Task HandleStockQuote(Task<List<object>> task)
         {
             List<object> quotes = await task;
 
