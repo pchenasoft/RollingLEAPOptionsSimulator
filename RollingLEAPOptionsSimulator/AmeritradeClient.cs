@@ -88,7 +88,9 @@ namespace RollingLEAPOptionsSimulator
 
             try
             {
-                var response = await this.http.PostAsync(
+                http.DefaultRequestHeaders.Clear();
+
+                var response = await http.PostAsync(
                    "/v1/oauth2/token",
                   new FormUrlEncodedContent(new[]
                   {
