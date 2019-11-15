@@ -170,21 +170,19 @@ namespace RollingLEAPOptionsSimulator
                 "symbol=" + symbol + "&includeQuotes=true";
             var text = await this.http.GetStringAsync(url);
 
-            Option deserializedProduct = JsonConvert.DeserializeObject<Option>(text);
-
+            OptionQuote optionChain = JsonConvert.DeserializeObject<OptionQuote>(text);
             
-            foreach (var optionDate in deserializedProduct.callExpDateMap)
+            foreach (var optionDate in optionChain.callExpDateMap.Keys)
             {
 
-                DateTime date = DateTime.ParseExact(optionDate.Key.Substring(0,10), "yyyy-MM-dd", null);
+                DateTime date = DateTime.ParseExact(optionDate.Substring(0,10), "yyyy-MM-dd", null);
                
-                foreach (var optionStrike in optionDate.Value)
+                foreach (var strikeArr in optionChain.callExpDateMap[optionDate].Values)
                 {
-                    foreach (var putCall in optionStrike.Value)
+                   foreach (var strike in strikeArr)
                     {              
                         try
-                        {
-                            OptionStrike strike = JsonConvert.DeserializeObject<OptionStrike>(putCall.ToString());
+                        {                           
                             strike.ExpirationDate = date;
                             strike.Underlyer = symbol;
                             quotes.Add(strike);
@@ -208,12 +206,15 @@ namespace RollingLEAPOptionsSimulator
     
         }
 
-        public class Option
+        public class OptionQuote
         {
-            public Dictionary<string, JObject> callExpDateMap { get; set; }
+            public Dictionary<string, OptionDate> callExpDateMap { get; set; }
         }
 
+        public class OptionDate : Dictionary<string, OptionStrike[]> { }
 
+        
+        
         public void Dispose()
         {
             this.Dispose(true);
